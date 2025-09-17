@@ -1,0 +1,6 @@
+langchain-google-genai
+langgraph
+pydantic
+typing-extensions
+pandas
+kagglehub
