@@ -1,7 +1,7 @@
 import kagglehub
 import random
 import pandas as pd
-path = kagglehub.dataset_download("zadafiyabhrami/global-crocodile-species-dataset") + '\crocodile_dataset.csv'
+path = kagglehub.dataset_download("zadafiyabhrami/global-crocodile-species-dataset") + '/crocodile_dataset.csv'
 pd = pd.read_csv(path)
 
 lista_aleatoria = random.sample(range(0, len(pd)), 3)
