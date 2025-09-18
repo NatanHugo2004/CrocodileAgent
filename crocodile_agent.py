@@ -49,8 +49,7 @@ def condition(state: OverallState):
         return "make_resumes"
     elif action == "joke":
         return "make_jokes"
-    elif action == "conclusion":
-        return "assistant"    
+
     else:
         return END
       
