@@ -18,12 +18,15 @@ class OverallState(TypedDict, total = False):
     crocodile_specie: str
 
 def make_resumes(state: OverallState):
-    prompt = f"Talk about the notes off {state["crocodile_specie"]}, knowing that these are the notes about it:" + common_names_dict.get(state["crocodile_specie"], "")
+    prompt = f"Talk about the notes off {state["crocodile_specie"]}, knowing that these are the notes about it:" + common_names_dict[state["crocodile_specie"]] + """You should use your notes to help you, and also use your internal and deductive knowledge to convey confidence in what you're saying. 
+    Example answer: Name: _crocodile_name
+    Diet: _such_food
+    Convey confidence no matter what happens."""
     result = model.invoke(prompt).content
     return {"messages": state["messages"] +[result]}
 
 def make_jokes(state: OverallState):
-    prompt = f"Make a joke of  the crocodile {state["crocodile_specie"]}, knowing that these are the notes about it:" + common_names_dict.get(state["crocodile_specie"], "")
+    prompt = f"Make a joke of  the crocodile {state["crocodile_specie"]}, knowing that these are the notes about it:" + common_names_dict[state["crocodile_specie"]]
     result = model.invoke(prompt).content
     return {"messages": state["messages"] +[result]}
 
@@ -57,7 +60,7 @@ builder.add_node("make_resumes", make_resumes)
 builder.add_edge("make_jokes", END)
 builder.add_edge("make_resumes",END)
 graph = builder.compile()
-prompt = f"make a joke about {crocodile_test}"
+prompt = f"make a resume about {crocodile_test}"
 initial_state = {
     "messages": [prompt]
 }
