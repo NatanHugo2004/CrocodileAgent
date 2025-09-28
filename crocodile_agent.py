@@ -6,107 +6,76 @@ from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from langchain_core.messages import HumanMessage, BaseMessage,AIMessage, SystemMessage
 from dotenv import load_dotenv
+from typing import List, Any
+from langgraph.graph import MessagesState
 
 load_dotenv()
 
-from crocodile_dataset import crocodile_test, common_names_dict
+from crocodile_dataset import common_names_dict_notes, common_names_dict_conservation, common_names_dict_habitat, common_names_dict_country, common_names_dict_weight
 
 api_key = os.getenv("GOOGLE_API_KEY")
 os.environ["GOOGLE_API_KEY"] = api_key
-model = ChatGoogleGenerativeAI(model="models/gemini-1.5-flash-latest", temperature=0)
+model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
-class OverallState(TypedDict, total = False):
-    messages: list
-    action: str
-    crocodile_specie: str
 
-def make_resumes(state: OverallState):
-    prompt = (
-        f"Talk about the notes of {state['crocodile_specie']}, knowing that these are the notes about it: "
-        + common_names_dict[state["crocodile_specie"]]
-        + """ You should use your notes to help you, and also use your internal and deductive knowledge
-        to convey confidence in what you're saying. 
-        Example answer: 
-        Name: _crocodile_name
-        Diet: _such_food
-        Convey confidence no matter what happens.
-        At the end, say that you will make a conclusion about this, but don't go deep, just one line talking that you will go do this in the next message"""
-    )
-    result = model.invoke([HumanMessage(content=prompt)])
-    return {"messages": state["messages"] + [AIMessage(content=result.content)], "action": "conclusion"}
+def make_resumes(a:str):
+    """
+    Returns a summary that can be used for both summaries and jokes with notes, habitat, country, weight and conservation status for the crocodile with common name 'a'.    Args:
+        a: Common name of the crocodile (e.g., 'American Crocodile')
+    Returns:
+        String with all available information about the crocodile.
+    """
+    info = (
+    "Notes: " + common_names_dict_notes.get(a, "No info available.") +
+    " | Habitat: " + common_names_dict_habitat.get(a, "No info available.") +
+    " | Country: " + common_names_dict_country.get(a, "No info available.") +
+    " | Weight: " + str(common_names_dict_weight.get(a, "No info available.")) +
+    " | Conservation: " + common_names_dict_conservation.get(a, "No info available.")
+)
+    return info
 
-def make_jokes(state: OverallState):
-    prompt = (
-        f"Make a joke about the crocodile {state['crocodile_specie']}, knowing that these are the notes about it: "
-        + common_names_dict[state["crocodile_specie"]]
-    )
-    result = model.invoke([HumanMessage(content=prompt)])
-    return {"messages": state["messages"] + [AIMessage(content=result.content)], "action": "none"}
+def make_jokes(a:str):
+    """
+    Returns information for jokes that includes habitat, country, weight and conservation status for the crocodile with common name 'a'. Combine this with your knowledge
+        Args:
+        a: Common name of the crocodile (e.g., 'American Crocodile')
+    Returns:
+        String with all available information about the crocodile.
+    """
+    info = (
+    "Notes: " + common_names_dict_notes.get(a, "No info available.") +
+    " | Habitat: " + common_names_dict_habitat.get(a, "No info available.") +
+    " | Country: " + common_names_dict_country.get(a, "No info available.") +
+    " | Weight: " + str(common_names_dict_weight.get(a, "No info available.")) +
+    " | Conservation: " + common_names_dict_conservation.get(a, "No info available.")
+)
+    return info 
 
-def condition(state: OverallState):
-    action = state.get("action")
-    if action == "resume":
-        return "make_resumes"
-    elif action == "joke":
-        return "make_jokes"
-
-    else:
-        return END
-      
-
-def assistant(state: OverallState):
-    last_message = state["messages"][-1]
-
-    if isinstance(last_message, BaseMessage):
-        question = last_message.content
-    else:
-        return {"messages": state["messages"], "action": "none"}
-
-    if "make a resume" in question:
-        crocodile_name = question.replace("make a resume about ", "").strip()
-        return {
-            "messages": state["messages"],
-            "action": "resume",
-            "crocodile_specie": crocodile_name,
-        }
+def assistant(state: MessagesState):
+    response = llm_with_tools.invoke(state["messages"])
+    return {"messages": state["messages"] + [response]}
         
-    elif "make a joke" in question:
-        crocodile_name = question.replace("make a joke about ", "").strip()
-        return {
-            "messages": state["messages"],
-            "action": "joke",
-            "crocodile_specie": crocodile_name,
-        }
-    
-    elif state["action"] == "conclusion":
-        conclusion = model.invoke(
-            [HumanMessage(content=f"make a conclusion about {question} and say without fail say goodbye")]
-        )
-        return {"messages": state["messages"] + [AIMessage(content=conclusion.content)], "action": "none"}
-
+tools = [make_resumes, make_jokes]
+llm_with_tools = model.bind_tools(tools, parallel_tool_calls=False)
 
 # --- Graph definition ---
-builder = StateGraph(OverallState)
+builder = StateGraph(MessagesState)
+
 builder.add_node("assistant", assistant)
 builder.add_edge(START,"assistant")
-builder.add_node("make_jokes", make_jokes)
-builder.add_conditional_edges("assistant", condition)
-builder.add_node("make_resumes", make_resumes)
-builder.add_edge("make_jokes", "assistant")
-builder.add_edge("make_resumes","assistant")
+builder.add_node("tools", ToolNode(tools))
+builder.add_conditional_edges("assistant", tools_condition)
+builder.add_edge("tools", "assistant")
 graph = builder.compile()
 
 # --- Example run ---
-prompt = HumanMessage(content=f"make a resume about {crocodile_test}")
+
+prompt = HumanMessage(content=input(""))
 initial_state = {
     "messages": [prompt]
 }
+
 result = graph.invoke(initial_state)
 
 for m in result['messages']:
-    if isinstance(m, HumanMessage):
-        print("Human:", m.content)
-    elif isinstance(m, AIMessage):
-        print("AI:", m.content)
-    elif isinstance(m, SystemMessage):
-        print("System:", m.content)
+    m.pretty_print()

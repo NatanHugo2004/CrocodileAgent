@@ -6,6 +6,8 @@ pd = pd.read_csv(path)
 
 lista_aleatoria = random.sample(range(0, len(pd)), 3)
 common_names = list(pd['Common Name'])
-common_names_dict = {pd.loc[i, "Common Name"]: pd.loc[i,"Notes"] for i in lista_aleatoria}
-crocodile_test = common_names[lista_aleatoria[0]]
-notes = common_names_dict[crocodile_test] 
+common_names_dict_notes = {row["Common Name"]: row["Notes"] for _, row in pd.iterrows()}
+common_names_dict_country = {row["Common Name"]: row["Country/Region"] for _, row in pd.iterrows()}
+common_names_dict_weight = {row["Common Name"]: row["Observed Weight (kg)"] for _, row in pd.iterrows()}
+common_names_dict_habitat = {row["Common Name"]: row["Habitat Type"] for _, row in pd.iterrows()}
+common_names_dict_conservation = {row["Common Name"]: row["Conservation Status"] for _, row in pd.iterrows()}
