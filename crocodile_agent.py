@@ -1,5 +1,5 @@
-from typing_extensions import TypedDict
 import os
+from typing_extensions import TypedDict
 from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, StateGraph, START
@@ -8,10 +8,9 @@ from langchain_core.messages import HumanMessage, BaseMessage,AIMessage, SystemM
 from dotenv import load_dotenv
 from typing import List, Any
 from langgraph.graph import MessagesState
-
+from rag_query import recuperar, montar_contexto
+from build_index import carregar_documentos_txt, gerar_passagens, construir_indice
 load_dotenv()
-
-from crocodile_dataset import common_names_dict_notes, common_names_dict_conservation, common_names_dict_habitat, common_names_dict_country, common_names_dict_weight
 
 api_key = os.getenv("GOOGLE_API_KEY")
 os.environ["GOOGLE_API_KEY"] = api_key
@@ -20,42 +19,26 @@ model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 def make_resumes(a:str):
     """
-    Returns a summary that can be used for both summaries and jokes with notes, habitat, country, weight and conservation status for the crocodile with common name 'a'.    Args:
+    Returns a summary that can be used for summaries with notes, habitat, country, 
+    weight and conservation status for the crocodile with common name 'a', this is made by a
+    RAG query, so the information will be in a rank of more relevants information about the crocodile.    Args:
         a: Common name of the crocodile (e.g., 'American Crocodile')
     Returns:
         String with all available information about the crocodile.
     """
-    info = (
-    "Notes: " + common_names_dict_notes.get(a, "No info available.") +
-    " | Habitat: " + common_names_dict_habitat.get(a, "No info available.") +
-    " | Country: " + common_names_dict_country.get(a, "No info available.") +
-    " | Weight: " + str(common_names_dict_weight.get(a, "No info available.")) +
-    " | Conservation: " + common_names_dict_conservation.get(a, "No info available.")
-)
-    return info
+    docs = carregar_documentos_txt(pasta="data")
+    passagens = gerar_passagens(docs)
+    construir_indice(passagens, out_dir="storage")
+    info = recuperar(f"information about crocodile {a}", k=4)
+    return montar_contexto(info)
 
-def make_jokes(a:str):
-    """
-    Returns information for jokes that includes habitat, country, weight and conservation status for the crocodile with common name 'a'. Combine this with your knowledge
-        Args:
-        a: Common name of the crocodile (e.g., 'American Crocodile')
-    Returns:
-        String with all available information about the crocodile.
-    """
-    info = (
-    "Notes: " + common_names_dict_notes.get(a, "No info available.") +
-    " | Habitat: " + common_names_dict_habitat.get(a, "No info available.") +
-    " | Country: " + common_names_dict_country.get(a, "No info available.") +
-    " | Weight: " + str(common_names_dict_weight.get(a, "No info available.")) +
-    " | Conservation: " + common_names_dict_conservation.get(a, "No info available.")
-)
-    return info 
 
 def assistant(state: MessagesState):
     response = llm_with_tools.invoke(state["messages"])
+    
     return {"messages": state["messages"] + [response]}
         
-tools = [make_resumes, make_jokes]
+tools = [make_resumes]
 llm_with_tools = model.bind_tools(tools, parallel_tool_calls=False)
 
 # --- Graph definition ---

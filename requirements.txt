@@ -5,3 +5,7 @@ typing-extensions
 pandas
 kagglehub
 dotenv
+sentence-transformers
+faiss-cpu
+numpy
+tiktoken
