@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, BaseMessage,AIMessage, SystemM
 from dotenv import load_dotenv
 from typing import List, Any
 from langgraph.graph import MessagesState
-from rag_query import recuperar, montar_contexto
+from rag_query import recuperar
 from build_index import carregar_documentos_txt, gerar_passagens, construir_indice
 load_dotenv()
 
@@ -29,8 +29,8 @@ def make_resumes(a:str):
     docs = carregar_documentos_txt(pasta="data")
     passagens = gerar_passagens(docs)
     construir_indice(passagens, out_dir="storage")
-    info = recuperar(f"information about crocodile {a}", k=4)
-    return montar_contexto(info)
+    info = recuperar(f"information about {a}", k=4)
+    return info
 
 
 def assistant(state: MessagesState):
@@ -53,7 +53,7 @@ graph = builder.compile()
 
 # --- Example run ---
 
-prompt = HumanMessage(content=input(""))
+prompt = HumanMessage(os.getenv("prompt_base"))
 initial_state = {
     "messages": [prompt]
 }
